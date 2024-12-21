@@ -1,37 +1,20 @@
-//
-//const express = require('express')
-//
-//const app = express()
-//const port = process.env.PORT || 3000;
-//
-//
-//app.get("/", (req, res) => {
-//	res.send('hello')
-//})
-//
-//
-//app.listen(port, () => {
-//	console.log('listening on 3k')
-//})
-
 import fs from 'fs/promises'
+
+import express from 'express';
 import { sequelize } from './models/index.js';
+
 import { rankEfficientTransitions, pickChords } from './variations.js';
 import { Chord } from './models/index.js';
 
-async function main() {
-  try {
+const app = express()
+const port = process.env.PORT || 3000;
 
-    // Seed the database with chord data
-    const jsonData = await fs.readFile('./chords.json', 'utf8')
-    const chordData =JSON.parse(jsonData)
+// Seed the database with chord data
+const jsonData = await fs.readFile('./chords.json', 'utf8')
+const chordData =JSON.parse(jsonData)
 
-    await sequelize.sync({
-			force: true,
-			dialect: 'postgres'
-		}); // This will drop and recreate the tables
-
-    const batchSize = 100
+async function insert_chords(chordData) {
+  const batchSize = 100
     for (const [chordName, variations] of Object.entries(chordData)) {
       const chordBatch = [];
       for (let i = 0; i < variations.length; i++) {
@@ -48,18 +31,35 @@ async function main() {
         }
       }
     }
-
-    const chords = ['A', 'D', 'G'];
-    const rankedTransitions = await rankEfficientTransitions(chords);
-
-    const pickedChords = await pickChords(rankedTransitions);
-    console.log(pickedChords)
-  } catch (error) {
-    console.error('Error:', error);
-  } finally {
-    await sequelize.close();
-  }
+  return
 }
 
-main();
+await sequelize.sync({
+  force: true,
+  dialect: 'postgres'
+}).then(() => {
+  console.log("db and tables up")
+  insert_chords(chordData)
+})
+.then(() => {
+  console.log('chord data inserted')
+})
+.catch((error) => {
+  console.log('error syncing db:', error)
+})
 
+app.get("/", (req, res) => {
+  res.send('hello')
+})
+
+app.post('/variations', async (req, res) => {
+    console.log('posted', req.body)
+    const chords = ['A', 'D', 'G'];
+    const rankedTransitions = await rankEfficientTransitions(chords);
+    const pickedChords = await pickChords(rankedTransitions);
+    res.send(pickedChords)
+})
+
+app.listen(port, () => {
+  console.log('listening on 3k')
+})
