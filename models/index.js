@@ -45,6 +45,10 @@ const Transition = sequelize.define('Transition', {
 		type: DataTypes.FLOAT,
 		allowNull: false
 	},
+	highFretScore: {
+		type: DataTypes.FLOAT,
+		allowNull: false
+	},
 	fingerMovementScore: {
 		type: DataTypes.STRING,
 		allowNull: false

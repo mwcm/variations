@@ -2,7 +2,7 @@ import { Op } from 'sequelize';
 import { Chord, Transition } from './models/index.js';
 import { combinations } from './util.js';
 
-async function compareFingeringsAndHandPos(one, two, fingeringPenalty = -1, handPosPenalty = -1) {
+async function compareFingeringsAndHandPos(one, two, fingeringPenalty = -1, handPosPenalty = -1, highFretPenalty = -2) {
   // Fingering comparison
   const uniqueFingersChordOne = new Set(one.fingerings.filter(x => x !== '-'));
   const uniqueFingersChordTwo = new Set(two.fingerings.filter(x => x !== '-'));
@@ -37,10 +37,16 @@ async function compareFingeringsAndHandPos(one, two, fingeringPenalty = -1, hand
   const handPositionDiff = Math.abs(midpointChordOne - midpointChordTwo);
   const handPositionScore = handPositionDiff * handPosPenalty;
 
+  // High fret penalty
+  const highFretScoreOne = maxFretChordOne > 9 ? (maxFretChordOne - 9) * highFretPenalty : 0;
+  const highFretScoreTwo = maxFretChordTwo > 9 ? (maxFretChordTwo - 9) * highFretPenalty : 0;
+  const highFretScore = highFretScoreOne + highFretScoreTwo;
+
   return {
     'fingerMovementScore': fingeringPenalties,
     'handMovementScore': handPositionScore,
-    'totalScore': fingeringPenalties + handPositionScore
+    'highFretScore': highFretScore,
+    'totalScore': fingeringPenalties + handPositionScore + highFretScore
   }
 }
 
@@ -50,7 +56,7 @@ export async function rankEfficientTransitions(chords) {
 
   for (const [chordOneName, chordTwoName] of chordPairs) {
     console.log(`Processing chord pair: ${chordOneName} - ${chordTwoName}`);
-    
+
     const chordOneVariations = await Chord.findAll({
       where: { name: { [Op.like]: `${chordOneName} v%` } },
       order: [['name', 'ASC']]
@@ -70,6 +76,7 @@ export async function rankEfficientTransitions(chords) {
           totalScore: scores['totalScore'],
           handMovementScore: scores['handMovementScore'],
           fingerMovementScore: scores['fingerMovementScore'],
+          highFretScore: scores['highFretScore'],
           fromChord: chordOne,
           toChord: chordTwo
         });
@@ -88,7 +95,7 @@ export async function rankEfficientTransitions(chords) {
 
     allSortedTransitions[`${chordOneName} ${chordTwoName}`] = transitions;
   }
-  
+
   return allSortedTransitions;
 }
 
@@ -140,4 +147,3 @@ export async function pickChords(transitions) {
 
   return bestVariations;
 }
-

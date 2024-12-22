@@ -1,6 +1,7 @@
 import fs from 'fs/promises'
 
 import express from 'express';
+import bodyParser from 'body-parser';
 import { sequelize } from './models/index.js';
 
 import { rankEfficientTransitions, pickChords } from './variations.js';
@@ -8,6 +9,10 @@ import { Chord } from './models/index.js';
 
 const app = express()
 const port = process.env.PORT || 3000;
+
+app.use(bodyParser.urlencoded({extended:true}))
+app.use(bodyParser.json())
+app.use(bodyParser.raw())
 
 // Seed the database with chord data
 const jsonData = await fs.readFile('./chords.json', 'utf8')
@@ -53,11 +58,14 @@ app.get("/", (req, res) => {
 })
 
 app.post('/variations', async (req, res) => {
-    console.log('posted', req.body)
-    const chords = ['A', 'D', 'G'];
-    const rankedTransitions = await rankEfficientTransitions(chords);
-    const pickedChords = await pickChords(rankedTransitions);
-    res.send(pickedChords)
+    try{
+      const chords = req.body
+      const rankedTransitions = await rankEfficientTransitions(chords);
+      const pickedChords = await pickChords(rankedTransitions);
+      res.send(pickedChords)
+    } catch (error){
+      console.log(error)
+    }
 })
 
 app.listen(port, () => {
